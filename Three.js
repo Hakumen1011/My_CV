@@ -65,10 +65,18 @@ export function loadDecorations(scene, THREE) {
 
     loadDecor({
         url: "assets/models/hatsune_miku_figure.glb",
-        position: [-0.9, 0, -4.35],
+        position: [-1.65, 0, -4.50],
         rotation: [0, 0.25, 0],
-        scale: 0.8,
+        scale: 0.19,
         restingY: shelfTopY
+    });
+
+    loadDecor({
+    url: "assets/models/dumbbell.glb",
+    position: [-0.8, 0, -4.50],
+    rotation: [0, 0.6, 0],
+    scale: 1.8,
+    restingY: shelfTopY
     });
 
     const lampGlowLight = new THREE.PointLight(0xffa45f, 3.6, 12);
