@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Herman Bantjes | Portfolio</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <main id="portfolio">
+
+        <section id="intro">
+
+            <div id="intro-content">
+                <p class="system-text">INITIALIZING PORTFOLIO...</p>
+
+                <h1>HERMAN BANTJES</h1>
+
+                <p class="subtitle">
+                    Computing Student | Aspiring Software Developer
+                </p>
+
+                <button id="enter-button" onclick="document.getElementById('intro').classList.add('hidden')">
+                    ENTER PORTFOLIO
+                </button>
+            </div>
+
+        </section>
+
+        <section id="scene-container"></section>
+
+    </main>
+
+    <!-- Three.js -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <script type="module" src="script.js"></script>
+
+</body>
+</html>
