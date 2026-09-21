@@ -415,9 +415,13 @@ const cvIdlePosition = new THREE.Vector3(-2.2, 2.735, 0.9);
 const cvHoverPosition = new THREE.Vector3(-1.0, 3.2, 1.8);
 const cvFocusPosition = new THREE.Vector3(0.15, 3.2, 2.8);
 
-const cvIdleRotation = new THREE.Euler(-Math.PI / 2, -0.7, 0);
-const cvHoverRotation = new THREE.Euler(0, -0.08, 0);
-const cvFocusRotation = new THREE.Euler(0, 0, 0);
+// Order is explicit here so that cv.rotation.copy(...) — used in hideIntro
+// when the Enter button is clicked — carries the correct rotation order
+// along with it, instead of silently resetting cv.rotation.order back to
+// three.js's default ('XYZ') and breaking the flatten math.
+const cvIdleRotation = new THREE.Euler(-Math.PI / 2, -0.7, 0, "YXZ");
+const cvHoverRotation = new THREE.Euler(0, -0.08, 0, "YXZ");
+const cvFocusRotation = new THREE.Euler(0, 0, 0, "YXZ");
 
 const deskTopY = desk.position.y + deskGeometry.parameters.height / 2;
 const cvBoundingBox = new THREE.Box3();
