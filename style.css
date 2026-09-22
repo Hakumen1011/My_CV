@@ -115,3 +115,74 @@ h1 {
     background: white;
     color: black;
 }
+
+#printer-confirm {
+    position: fixed;
+    left: 50%;
+    bottom: 60px;
+    transform: translateX(-50%) translateY(20px);
+
+    z-index: 20;
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transition: opacity 0.4s ease, transform 0.4s ease, visibility 0.4s ease;
+}
+
+#printer-confirm.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+    pointer-events: auto;
+}
+
+#printer-confirm-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+
+    padding: 24px 32px;
+
+    background: rgba(10, 10, 10, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(6px);
+}
+
+#printer-confirm h2 {
+    font-size: 22px;
+    letter-spacing: 2px;
+}
+
+#printer-confirm-buttons {
+    display: flex;
+    gap: 16px;
+}
+
+#printer-confirm-buttons button {
+    padding: 10px 22px;
+    background: transparent;
+    color: white;
+    border: 1px solid white;
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    transition: 0.3s;
+}
+
+#printer-confirm-buttons button:hover {
+    background: white;
+    color: black;
+}
+
+#printer-confirm-yes {
+    border-color: #62e6c4;
+    color: #62e6c4;
+}
+
+#printer-confirm-yes:hover {
+    background: #62e6c4;
+    color: #06110d;
+}

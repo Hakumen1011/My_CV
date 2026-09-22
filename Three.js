@@ -2,7 +2,7 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/
 
 const gltfLoader = new GLTFLoader();
 
-export function loadDecorations(scene, THREE) {
+export function loadDecorations(scene, THREE, { onPrinterLoad } = {}) {
     const alignmentBox = new THREE.Box3();
 
     function loadDecor({ url, position, rotation = [0, 0, 0], scale = 1, restingY, onLoad }) {
@@ -56,10 +56,21 @@ export function loadDecorations(scene, THREE) {
     });
 
     loadDecor({
+    url: "assets/models/printer.glb",
+    position: [4.65, 0, 0],
+    rotation: [0, Math.PI / 2, 0],   // turns it to face sideways — flip sign or try Math.PI if it's facing the wrong way
+    scale: 1.3,                        // I don't have this file to measure, so tune this by eye
+    restingY: deskTopY,
+    onLoad: (model) => {
+        onPrinterLoad?.(model);
+    }
+});
+
+    loadDecor({
         url: "assets/models/coffee_cup.glb",
         position: [2.0, 0, -0.55],
         rotation: [0, -0.25, 0],
-        scale: 0.4,
+        scale: 0.26,
         restingY: deskTopY
     });
 
@@ -71,6 +82,7 @@ export function loadDecorations(scene, THREE) {
         restingY: shelfTopY
     });
 
+    
     loadDecor({
     url: "assets/models/dumbbell.glb",
     position: [-0.8, 0, -4.50],

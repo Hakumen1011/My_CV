@@ -2,6 +2,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.m
 import { loadDecorations } from "./Three.js";
 
 
+
 // =============================
 // SCENE
 // =============================
@@ -11,7 +12,17 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x050505);
 scene.fog = new THREE.Fog(0x050505, 8, 25);
 
-const lampGlowLight = loadDecorations(scene, THREE);
+const printerParts = [];
+
+const lampGlowLight = loadDecorations(scene, THREE, {
+    onPrinterLoad: (model) => {
+        model.traverse((child) => {
+            if (child.isMesh) {
+                printerParts.push(child);
+            }
+        });
+    }
+});
 const clock = new THREE.Clock();
 
 
@@ -330,6 +341,97 @@ desk.receiveShadow = true;
 
 scene.add(desk);
 
+
+// =============================
+// SMALL DESK & PRINTER
+// =============================
+
+// Sits right beside the main desk (which spans x: -3.5 to 3.5), with a
+// small gap, and matches its top height (2.7) so the two read as one
+// continuous work surface.
+
+const smallDeskGeometry = new THREE.BoxGeometry(
+    2.0,
+    0.35,
+    1.8
+);
+
+const smallDesk = new THREE.Mesh(
+    smallDeskGeometry,
+    deskMaterial
+);
+
+smallDesk.position.set(4.65, 2.525, 0);
+smallDesk.castShadow = true;
+smallDesk.receiveShadow = true;
+
+scene.add(smallDesk);
+
+function createSmallDeskLeg(x, z) {
+    const geometry = new THREE.BoxGeometry(0.22, 2.35, 0.22);
+    const material = new THREE.MeshStandardMaterial({ color: 0x151515 });
+    const leg = new THREE.Mesh(geometry, material);
+
+    leg.position.set(x, 1.175, z);
+    leg.castShadow = true;
+    leg.receiveShadow = true;
+
+    scene.add(leg);
+}
+
+createSmallDeskLeg(3.8, -0.75);
+createSmallDeskLeg(5.5, -0.75);
+createSmallDeskLeg(3.8, 0.75);
+createSmallDeskLeg(5.5, 0.75);
+
+
+const CV_PDF_PATH = "assets/cv/Herman_Bantjes_CV.pdf";
+
+function downloadCV() {
+    const link = document.createElement("a");
+    link.href = CV_PDF_PATH;
+    link.download = "Herman_Bantjes_CV.pdf";
+    link.click();
+}
+
+const printerConfirmEl = document.getElementById("printer-confirm");
+const printerConfirmYes = document.getElementById("printer-confirm-yes");
+const printerConfirmCancel = document.getElementById("printer-confirm-cancel");
+
+function showPrinterConfirm() {
+    printerConfirmEl?.classList.add("visible");
+}
+
+function hidePrinterConfirm() {
+    printerConfirmEl?.classList.remove("visible");
+}
+
+function confirmPrint() {
+    downloadCV();
+    hidePrinterConfirm();
+    printerFocused = false;
+}
+
+function cancelPrint() {
+    hidePrinterConfirm();
+    printerFocused = false;
+}
+
+printerConfirmYes?.addEventListener("click", (event) => {
+    event.stopPropagation();   // stops this click from bubbling into the window handler below
+    confirmPrint();
+});
+
+printerConfirmCancel?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    cancelPrint();
+});
+
+
+
+
+
+
 // =============================
 // CV DOCUMENT
 // =============================
@@ -410,6 +512,7 @@ let cvFocused = false;
 let screenFocused = false;
 let shelfFocused = false;
 let curtainsOpen = false;
+let printerFocused = false;
 
 const cvIdlePosition = new THREE.Vector3(-2.2, 2.735, 0.9);
 const cvHoverPosition = new THREE.Vector3(-1.0, 3.2, 1.8);
@@ -485,11 +588,12 @@ function checkCVHover() {
     const screenIntersections = raycaster.intersectObject(screen);
     const shelfIntersections = raycaster.intersectObjects(shelfParts, false);
     const curtainIntersections = raycaster.intersectObjects(curtains, false);
+    const printerIntersections = raycaster.intersectObjects(printerParts, false);
 
     const nextHovered = intersections.length > 0;
 
     document.body.style.cursor =
-        nextHovered || screenIntersections.length > 0 || shelfIntersections.length > 0 || curtainIntersections.length > 0
+        nextHovered || screenIntersections.length > 0 || shelfIntersections.length > 0 || curtainIntersections.length > 0 || printerIntersections.length > 0
             ? "pointer"
             : "default";
 
@@ -505,23 +609,39 @@ window.addEventListener("click", () => {
         camera
     );
 
-    const intersections = raycaster.intersectObjects([cv, screen, ...shelfParts, ...curtains], false);
+    const intersections = raycaster.intersectObjects([cv, screen, ...shelfParts, ...curtains, ...printerParts], false);
     const clickedObject = intersections[0]?.object;
 
-    if (clickedObject === cv) {
+        if (clickedObject === cv) {
         cvFocused = !cvFocused;
         screenFocused = false;
         shelfFocused = false;
+        printerFocused = false;
+        hidePrinterConfirm();
     } else if (clickedObject === screen) {
         screenFocused = !screenFocused;
         cvFocused = false;
         shelfFocused = false;
+        printerFocused = false;
+        hidePrinterConfirm();
     } else if (shelfParts.includes(clickedObject)) {
         shelfFocused = !shelfFocused;
         cvFocused = false;
         screenFocused = false;
+        printerFocused = false;
+        hidePrinterConfirm();
     } else if (curtains.includes(clickedObject)) {
         curtainsOpen = !curtainsOpen;
+    } else if (printerParts.includes(clickedObject)) {
+        if (printerFocused) {
+            confirmPrint();
+        } else {
+            cvFocused = false;
+            screenFocused = false;
+            shelfFocused = false;
+            printerFocused = true;
+            showPrinterConfirm();
+        }
     }
 
 });
@@ -532,6 +652,8 @@ window.addEventListener("keydown", (event) => {
         screenFocused = false;
         shelfFocused = false;
         curtainsOpen = false;
+        printerFocused = false;
+        hidePrinterConfirm();
     }
 });
 
@@ -867,23 +989,25 @@ function animate() {
     windowMaterial.emissiveIntensity = curtainsOpen ? 100 : 0.8;
 
     const desiredCameraPosition = shelfFocused
-        ? new THREE.Vector3(0, 8.45, -1.7)
-        : screenFocused
-            ? new THREE.Vector3(0, 4.15, 3.5)
-            : cvFocused
-                ? new THREE.Vector3(0, 3.9, 5.9)
+    ? new THREE.Vector3(0, 8.45, -1.7)
+    : screenFocused
+        ? new THREE.Vector3(0, 4.15, 3.5)
+        : cvFocused
+            ? new THREE.Vector3(0, 3.9, 5.9)
+            : printerFocused
+                ? new THREE.Vector3(6.4, 3.3, 1.3)
                 : new THREE.Vector3(0, 3.65, 7.3);
-
     camera.position.lerp(desiredCameraPosition, 0.04);
 
-    const desiredLookAt = shelfFocused
-        ? new THREE.Vector3(0, 7.65, -4.2)
-        : screenFocused
-            ? new THREE.Vector3(0, 3.95, 0.05)
-            : cvFocused
-                ? new THREE.Vector3(0, 3.35, 1.4)
+   const desiredLookAt = shelfFocused
+    ? new THREE.Vector3(0, 7.65, -4.2)
+    : screenFocused
+        ? new THREE.Vector3(0, 3.95, 0.05)
+        : cvFocused
+            ? new THREE.Vector3(0, 3.35, 1.4)
+            : printerFocused
+                ? new THREE.Vector3(4.65, 2.9, 0.05)
                 : new THREE.Vector3(0, 3.1, 0.5);
-
     cameraLookAt.lerp(desiredLookAt, 0.08);
     camera.lookAt(cameraLookAt);
 
