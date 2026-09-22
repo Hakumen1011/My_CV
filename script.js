@@ -14,6 +14,20 @@ scene.fog = new THREE.Fog(0x050505, 8, 25);
 
 const printerParts = [];
 
+// Hobby labels: shelf decorations that show a text tag when hovered.
+// hobbyLabels maps each mesh to the text it should display.
+const hobbyParts = [];
+const hobbyLabels = new WeakMap();
+
+function registerHobbyModel(model, label) {
+    model.traverse((child) => {
+        if (child.isMesh) {
+            hobbyParts.push(child);
+            hobbyLabels.set(child, label);
+        }
+    });
+}
+
 const lampGlowLight = loadDecorations(scene, THREE, {
     onPrinterLoad: (model) => {
         model.traverse((child) => {
@@ -21,7 +35,9 @@ const lampGlowLight = loadDecorations(scene, THREE, {
                 printerParts.push(child);
             }
         });
-    }
+    },
+    onMikuLoad: (model) => registerHobbyModel(model, "Animation"),
+    onDumbbellLoad: (model) => registerHobbyModel(model, "GYM")
 });
 const clock = new THREE.Clock();
 
@@ -443,31 +459,141 @@ cvCanvas.height = 2400;
 const cvContext = cvCanvas.getContext("2d");
 cvContext.scale(2, 2);
 
+// Working coordinate space below is 900 x 1200 (the canvas is 1800 x 2400,
+// drawn at 2x scale). Manual word-wrap since canvas text doesn't wrap itself.
+const cvMargin = 60;
+const cvMaxWidth = 900 - cvMargin * 2;
+let cvY = 0;
+
+function cvWrapText(text, size, color, lineHeight = size + 6) {
+    cvContext.fillStyle = color;
+    cvContext.font = `${size}px Arial`;
+
+    const words = text.split(" ");
+    let line = "";
+
+    for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + " ";
+        const testWidth = cvContext.measureText(testLine).width;
+
+        if (testWidth > cvMaxWidth && line !== "") {
+            cvContext.fillText(line.trim(), cvMargin, cvY);
+            line = words[i] + " ";
+            cvY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+
+    cvContext.fillText(line.trim(), cvMargin, cvY);
+    cvY += lineHeight;
+}
+
+function cvSectionHeading(text) {
+    cvContext.fillStyle = "#1a1a1a";
+    cvContext.font = "bold 20px Arial";
+    cvContext.fillText(text.toUpperCase(), cvMargin, cvY);
+    cvY += 8;
+
+    cvContext.strokeStyle = "#c9c2b4";
+    cvContext.lineWidth = 1.5;
+    cvContext.beginPath();
+    cvContext.moveTo(cvMargin, cvY);
+    cvContext.lineTo(900 - cvMargin, cvY);
+    cvContext.stroke();
+    cvY += 22;
+}
+
+function cvLine(text, font, color) {
+    cvContext.fillStyle = color;
+    cvContext.font = font;
+    cvContext.fillText(text, cvMargin, cvY);
+
+    // Pull the numeric size out of strings like "bold 17px Arial" —
+    // parseInt(font, 10) previously choked on the leading "bold" and
+    // returned NaN, which broke cvY for every line after the first
+    // bold one (and NaN coordinates silently draw nothing on canvas).
+    const size = parseInt(font.match(/(\d+)px/)?.[1] ?? "16", 10);
+    cvY += size + 5;
+}
+
+// Background
 cvContext.fillStyle = "#f5f2ea";
 cvContext.fillRect(0, 0, cvCanvas.width, cvCanvas.height);
 
+// Header
+cvY = 74;
+cvLine("HERMAN BANTJES", "bold 40px Arial", "#121212");
+cvLine("Bachelor of Computing Student | Aspiring Software Developer", "19px Arial", "#3a3a3a");
+cvY += 4;
+cvLine("Pretoria, Gauteng | 060 813 4459 | hermanbantjes04@gmail.com", "15px Arial", "#555555");
+cvLine("GitHub: github.com/Hakumen1011", "15px Arial", "#555555");
+cvY += 12;
+
 cvContext.strokeStyle = "#d9d3c9";
 cvContext.lineWidth = 2;
+cvContext.beginPath();
+cvContext.moveTo(cvMargin, cvY);
+cvContext.lineTo(900 - cvMargin, cvY);
+cvContext.stroke();
+cvY += 34;
 
-for (let y = 120; y < cvCanvas.height; y += 90) {
-    cvContext.beginPath();
-    cvContext.moveTo(60, y);
-    cvContext.lineTo(cvCanvas.width - 60, y);
-    cvContext.stroke();
-}
+// Professional summary
+cvSectionHeading("Professional Summary");
+cvWrapText(
+    "Third-year Bachelor of Computing (BCom) student at Belgium Campus with hands-on experience developing full-stack web applications, RESTful APIs, database-driven systems, and machine learning dashboards. Experienced with C#, JavaScript, Python, Java, ASP.NET Core, Express.js, PostgreSQL, MongoDB and Docker through academic and personal projects. Fast learner with strong problem-solving and time management skills seeking a graduate software development opportunity.",
+    17,
+    "#222222"
+);
+cvY += 12;
 
-cvContext.fillStyle = "#121212";
-cvContext.font = "bold 54px Arial";
-cvContext.fillText("HERMAN BANTJES", 60, 120);
+// Education
+cvSectionHeading("Education");
+cvLine("Belgium Campus iTversity - Bachelor of Computing (BCom)", "bold 17px Arial", "#222222");
+cvLine("2025 - Expected Graduation: 2028", "15px Arial", "#555555");
+cvY += 6;
+cvLine("National Senior Certificate (Grade 12)", "bold 17px Arial", "#222222");
+cvWrapText(
+    "Completed Grades 1-12 with no failed grades. Subjects: English, Afrikaans, Mathematics, Physical Sciences, Information Technology, Engineering Graphics & Design, Life Orientation.",
+    15,
+    "#333333"
+);
+cvY += 12;
 
-cvContext.font = "28px Arial";
-cvContext.fillText("Computing Student", 60, 190);
-cvContext.fillText("Software Developer", 60, 235);
+// Technical skills
+cvSectionHeading("Technical Skills");
+cvWrapText("Languages: C#, Java, JavaScript, Python, SQL, HTML, CSS", 16, "#222222");
+cvWrapText("Frameworks & Technologies: ASP.NET Core, Node.js, Express.js, Entity Framework Core, REST APIs, Docker", 16, "#222222");
+cvWrapText("Databases: PostgreSQL, MongoDB", 16, "#222222");
+cvWrapText("Tools: Git, GitHub, Visual Studio, Visual Studio Code, Jupyter Notebook", 16, "#222222");
+cvY += 12;
 
-cvContext.font = "22px Arial";
-cvContext.fillText("Skills: JavaScript • HTML • CSS • Three.js", 60, 380);
-cvContext.fillText("Projects: Portfolio • Web Apps • Visual Design", 60, 430);
-cvContext.fillText("Experience: Computing Student / Aspiring Developer", 60, 480);
+// Projects
+cvSectionHeading("Projects");
+cvLine("CampusLearn", "bold 16px Arial", "#222222");
+cvWrapText("RESTful ASP.NET Core application with PostgreSQL, CRUD operations, API endpoints and Docker deployment.", 15, "#333333");
+cvY += 6;
+cvLine("Machine Learning Dashboard", "bold 16px Arial", "#222222");
+cvWrapText("Dash/Plotly dashboard integrating predictive ML models and data visualisation.", 15, "#333333");
+cvY += 6;
+cvLine("Web Programming MVC Application", "bold 16px Arial", "#222222");
+cvWrapText("Node.js/Express/MongoDB application following MVC architecture with a responsive frontend.", 15, "#333333");
+cvY += 12;
+
+// Experience
+cvSectionHeading("Experience");
+cvLine("Stock Management Assistant - Seal Centre", "bold 16px Arial", "#222222");
+cvLine("Jan 2026 - Mar 2026", "14px Arial", "#666666");
+cvWrapText("Managed inventory, maintained accurate stock records and supported warehouse operations.", 15, "#333333");
+cvY += 12;
+
+// Soft skills
+cvSectionHeading("Soft Skills");
+cvWrapText(
+    "Problem Solving | Time Management | Fast Learner | Team Collaboration | Analytical Thinking | Adaptability",
+    15,
+    "#333333"
+);
 
 const cvTexture = new THREE.CanvasTexture(cvCanvas);
 cvTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
@@ -480,7 +606,14 @@ const cvGeometry = new THREE.BoxGeometry(
 
 const cvMaterial = new THREE.MeshStandardMaterial({
     map: cvTexture,
-    color: 0xffffff
+    color: 0xffffff,
+    // Reuses the same canvas texture as an emissive map: the pale page
+    // background is close to white so it glows brighter on focus, while
+    // the near-black text emits almost nothing — so contrast increases
+    // without the words themselves washing out.
+    emissive: 0xfff6e4,
+    emissiveMap: cvTexture,
+    emissiveIntensity: 0
 });
 
 const cv = new THREE.Mesh(
@@ -575,6 +708,15 @@ function updateCVState() {
     }
 
     cv.position.lerp(animatedPosition, 0.08);
+
+    // Brighten the page on focus so the text reads more clearly — a light
+    // glow while fully focused, a faint hint on hover, nothing at rest.
+    const targetEmissive = cvFocused ? 0.65 : cvHovered ? 0.2 : 0;
+    cvMaterial.emissiveIntensity = THREE.MathUtils.lerp(
+        cvMaterial.emissiveIntensity,
+        targetEmissive,
+        0.08
+    );
 }
 
 function checkCVHover() {
@@ -602,6 +744,31 @@ function checkCVHover() {
     }
 }
 
+function checkHobbyHover() {
+
+    // Only show hobby tags once the camera has actually zoomed in on the
+    // shelf — hovering the models from the default wide view stays quiet.
+    if (!shelfFocused) {
+        hobbyLabel.classList.remove("visible");
+        return;
+    }
+
+    raycaster.setFromCamera(mouse, camera);
+
+    const hobbyIntersections = raycaster.intersectObjects(hobbyParts, false);
+    const hit = hobbyIntersections[0]?.object;
+    const label = hit ? hobbyLabels.get(hit) : undefined;
+
+    if (label) {
+        hobbyLabelText.textContent = label;
+        hobbyLabel.style.left = `${mouseClient.x}px`;
+        hobbyLabel.style.top = `${mouseClient.y}px`;
+        hobbyLabel.classList.add("visible");
+    } else {
+        hobbyLabel.classList.remove("visible");
+    }
+}
+
 window.addEventListener("click", () => {
 
     raycaster.setFromCamera(
@@ -619,11 +786,42 @@ window.addEventListener("click", () => {
         printerFocused = false;
         hidePrinterConfirm();
     } else if (clickedObject === screen) {
-        screenFocused = !screenFocused;
-        cvFocused = false;
-        shelfFocused = false;
-        printerFocused = false;
-        hidePrinterConfirm();
+        if (screenFocused) {
+            // Already zoomed in on the browser mockup — check whether this
+            // click landed on a repo card before treating it as "back out".
+            const screenHit = intersections.find((hit) => hit.object === screen);
+            const uv = screenHit?.uv;
+
+            if (uv) {
+                const canvasX = uv.x * 1024;
+                const canvasY = (1 - uv.y) * 512;
+
+                const clickedCard = githubCardLayout.find(
+                    (card) =>
+                        canvasX >= card.x &&
+                        canvasX <= card.x + card.w &&
+                        canvasY >= card.y &&
+                        canvasY <= card.y + card.h
+                );
+
+                if (clickedCard) {
+                    // Private repos have nothing public to link to — clicking
+                    // one just stays put instead of opening a dead link.
+                    if (!clickedCard.repo.private) {
+                        window.open(`https://github.com/${githubUsername}/${clickedCard.repo.name}`, "_blank");
+                    }
+                    return;
+                }
+            }
+
+            screenFocused = false;
+        } else {
+            screenFocused = true;
+            cvFocused = false;
+            shelfFocused = false;
+            printerFocused = false;
+            hidePrinterConfirm();
+        }
     } else if (shelfParts.includes(clickedObject)) {
         shelfFocused = !shelfFocused;
         cvFocused = false;
@@ -634,7 +832,7 @@ window.addEventListener("click", () => {
         curtainsOpen = !curtainsOpen;
     } else if (printerParts.includes(clickedObject)) {
         if (printerFocused) {
-            confirmPrint();
+            cancelPrint();
         } else {
             cvFocused = false;
             screenFocused = false;
@@ -662,6 +860,7 @@ window.addEventListener("keydown", (event) => {
 // =============================
 
 const mouse = new THREE.Vector2();
+const mouseClient = { x: 0, y: 0 };
 
 window.addEventListener("mousemove", (event) => {
 
@@ -669,9 +868,15 @@ window.addEventListener("mousemove", (event) => {
 
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
+    mouseClient.x = event.clientX;
+    mouseClient.y = event.clientY;
+
 });
 
 const raycaster = new THREE.Raycaster();
+
+const hobbyLabel = document.getElementById("hobby-label");
+const hobbyLabelText = document.getElementById("hobby-label-text");
 
 const intro = document.getElementById("intro");
 const enterButton = document.getElementById("enter-button");
@@ -821,7 +1026,230 @@ canvas.height = 1024;
 const context = canvas.getContext("2d");
 context.scale(2, 2);
 
+// Real public repos pulled from github.com/Hakumen1011, plus the other
+// projects from the CV that live in private repos — those show up as
+// non-clickable "PRIVATE" cards instead of linking out to a repo the
+// visitor can't actually see. A language of null just means GitHub didn't
+// report one for that repo, so no language dot is drawn.
+const githubUsername = "Hakumen1011";
+const githubRepos = [
+    {
+        name: "SEN381_Civicconnect_Project",
+        description: "CivicConnect — community service request management platform, built as a Software Engineering project.",
+        language: null,
+        languageColor: "#8b949e",
+        private: false
+    },
+    {
+        name: "WPR381_project_Smart-event-management-system",
+        description: "Smart event management system built for the Web Programming module.",
+        language: "JavaScript",
+        languageColor: "#f1e05a",
+        private: false
+    },
+    {
+        name: "CampusLearn",
+        description: "RESTful ASP.NET Core app with PostgreSQL, CRUD operations, API endpoints and Docker deployment.",
+        language: "C#",
+        languageColor: "#178600",
+        private: true
+    },
+    {
+        name: "Machine Learning Dashboard",
+        description: "Dash/Plotly dashboard integrating predictive ML models and data visualisation.",
+        language: "Python",
+        languageColor: "#3572a5",
+        private: true
+    },
+    {
+        name: "Web Programming MVC Application",
+        description: "Node.js/Express/MongoDB app following MVC architecture with a responsive frontend.",
+        language: "JavaScript",
+        languageColor: "#f1e05a",
+        private: true
+    }
+];
+
+// Canvas is 2048x1024 physical, scaled 2x -> this is a 1024x512 logical
+// space. Layout is computed once and reused both to draw the cards and to
+// hit-test clicks against them (see the screen click handler below).
+const githubCardLayout = (() => {
+    const cardX = 40;
+    const cardW = 1024 - 80;
+    const cardH = 54;
+    const gap = 10;
+    let y = 148;
+
+    return githubRepos.map((repo) => {
+        const card = { repo, x: cardX, y, w: cardW, h: cardH };
+        y += cardH + gap;
+        return card;
+    });
+})();
+
+function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+    const words = text.split(" ");
+    let line = "";
+    let cursorY = y;
+
+    for (let i = 0; i < words.length; i++) {
+        const testLine = line + words[i] + " ";
+        const testWidth = ctx.measureText(testLine).width;
+
+        if (testWidth > maxWidth && line !== "") {
+            ctx.fillText(line.trim(), x, cursorY);
+            line = words[i] + " ";
+            cursorY += lineHeight;
+        } else {
+            line = testLine;
+        }
+    }
+
+    ctx.fillText(line.trim(), x, cursorY);
+    return cursorY + lineHeight;
+}
+
+function truncateCanvasText(ctx, text, maxWidth) {
+    if (ctx.measureText(text).width <= maxWidth) {
+        return text;
+    }
+
+    let truncated = text;
+    while (truncated.length > 1 && ctx.measureText(truncated + "…").width > maxWidth) {
+        truncated = truncated.slice(0, -1);
+    }
+
+    return truncated + "…";
+}
+
+function roundedRectPath(ctx, x, y, w, h, radius) {
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(x, y, w, h, radius);
+    } else {
+        ctx.rect(x, y, w, h);
+    }
+}
+
+function drawGithubBrowser() {
+    const w = 1024;
+    const h = 512;
+
+    // Page background (GitHub's own dark background color)
+    context.fillStyle = "#0d1117";
+    context.fillRect(0, 0, w, h);
+
+    // Browser chrome bar
+    context.fillStyle = "#1c1f26";
+    context.fillRect(0, 0, w, 46);
+
+    const dotColors = ["#ff5f57", "#febc2e", "#28c840"];
+    dotColors.forEach((color, i) => {
+        context.fillStyle = color;
+        context.beginPath();
+        context.arc(28 + i * 22, 23, 6, 0, Math.PI * 2);
+        context.fill();
+    });
+
+    // Address bar
+    roundedRectPath(context, 110, 10, 360, 26, 13);
+    context.fillStyle = "#0d1117";
+    context.fill();
+    context.strokeStyle = "#30363d";
+    context.lineWidth = 1;
+    context.stroke();
+
+    context.fillStyle = "#8b949e";
+    context.font = "14px Arial";
+    context.fillText(`github.com/${githubUsername}`, 126, 28);
+
+    context.fillStyle = "#6e7681";
+    context.font = "13px Arial";
+    context.fillText("REPOSITORIES", w - 190, 27);
+
+    // Profile header
+    context.fillStyle = "#e6edf3";
+    context.font = "bold 26px Arial";
+    context.fillText(githubUsername, 40, 92);
+
+    context.fillStyle = "#7d8590";
+    context.font = "15px Arial";
+    context.fillText("Herman Bantjes — Computing student", 40, 116);
+
+    // Repo cards — one compact row each so all five fit on screen at once.
+    githubCardLayout.forEach(({ repo, x, y, w: cardW, h: cardH }) => {
+        roundedRectPath(context, x, y, cardW, cardH, 8);
+        context.fillStyle = "#161b22";
+        context.fill();
+        context.strokeStyle = "#30363d";
+        context.lineWidth = 1;
+        context.stroke();
+
+        // Right-hand badge: a "PRIVATE" tag, or a language dot + name when
+        // the repo is public and GitHub reported a language. Measured first
+        // so the name/description on the left know how much room they have.
+        let badgeWidth = 0;
+
+        if (repo.private) {
+            context.font = "bold 12px Arial";
+            badgeWidth = context.measureText("PRIVATE").width + 24;
+        } else if (repo.language) {
+            context.font = "13px Arial";
+            badgeWidth = context.measureText(repo.language).width + 34;
+        }
+
+        const textMaxWidth = cardW - 32 - badgeWidth;
+
+        context.fillStyle = "#58a6ff";
+        context.font = "bold 17px Arial";
+        context.fillText(
+            truncateCanvasText(context, repo.name, textMaxWidth),
+            x + 16,
+            y + 22
+        );
+
+        context.fillStyle = "#8b949e";
+        context.font = "13px Arial";
+        context.fillText(
+            truncateCanvasText(context, repo.description, textMaxWidth),
+            x + 16,
+            y + 41
+        );
+
+        if (repo.private) {
+            roundedRectPath(context, x + cardW - badgeWidth - 12, y + cardH / 2 - 11, badgeWidth, 22, 11);
+            context.fillStyle = "rgba(219, 109, 40, 0.15)";
+            context.fill();
+            context.strokeStyle = "#db6d28";
+            context.lineWidth = 1;
+            context.stroke();
+
+            context.fillStyle = "#db6d28";
+            context.font = "bold 12px Arial";
+            context.fillText("PRIVATE", x + cardW - badgeWidth, y + cardH / 2 + 4);
+        } else if (repo.language) {
+            context.fillStyle = repo.languageColor;
+            context.beginPath();
+            context.arc(x + cardW - badgeWidth + 6, y + cardH / 2, 5, 0, Math.PI * 2);
+            context.fill();
+
+            context.fillStyle = "#c9d1d9";
+            context.font = "13px Arial";
+            context.fillText(repo.language, x + cardW - badgeWidth + 16, y + cardH / 2 + 5);
+        }
+    });
+
+    context.fillStyle = "#6e7681";
+    context.font = "13px monospace";
+    context.fillText("Click a repo to open it on GitHub  |  click elsewhere to back out", 40, h - 20);
+}
+
 function drawScreenContent(time) {
+    if (screenFocused) {
+        drawGithubBrowser();
+        return;
+    }
+
     const pulse = (Math.sin(time * 0.004) + 1) / 2;
     const cursorVisible = Math.floor(time / 500) % 2 === 0;
 
@@ -955,6 +1383,7 @@ function animate() {
     lampGlowLight.intensity = 3.3 + Math.sin(t * 0.6) * 0.25;
 
     checkCVHover();
+    checkHobbyHover();
     updateCVState();
     drawScreenContent(performance.now());
     screenTexture.needsUpdate = true;
@@ -991,7 +1420,7 @@ function animate() {
     const desiredCameraPosition = shelfFocused
     ? new THREE.Vector3(0, 8.45, -1.7)
     : screenFocused
-        ? new THREE.Vector3(0, 4.15, 3.5)
+        ? new THREE.Vector3(0, 4.15, 2.3)
         : cvFocused
             ? new THREE.Vector3(0, 3.9, 5.9)
             : printerFocused

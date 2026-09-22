@@ -2,7 +2,7 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/
 
 const gltfLoader = new GLTFLoader();
 
-export function loadDecorations(scene, THREE, { onPrinterLoad } = {}) {
+export function loadDecorations(scene, THREE, { onPrinterLoad, onMikuLoad, onDumbbellLoad } = {}) {
     const alignmentBox = new THREE.Box3();
 
     function loadDecor({ url, position, rotation = [0, 0, 0], scale = 1, restingY, onLoad }) {
@@ -79,16 +79,22 @@ export function loadDecorations(scene, THREE, { onPrinterLoad } = {}) {
         position: [-1.65, 0, -4.50],
         rotation: [0, 0.25, 0],
         scale: 0.19,
-        restingY: shelfTopY
+        restingY: shelfTopY,
+        onLoad: (model) => {
+            onMikuLoad?.(model);
+        }
     });
 
-    
+
     loadDecor({
     url: "assets/models/dumbbell.glb",
     position: [-0.8, 0, -4.50],
     rotation: [0, 0.6, 0],
     scale: 1.8,
-    restingY: shelfTopY
+    restingY: shelfTopY,
+    onLoad: (model) => {
+        onDumbbellLoad?.(model);
+    }
     });
 
     const lampGlowLight = new THREE.PointLight(0xffa45f, 3.6, 12);
