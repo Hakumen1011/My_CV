@@ -37,7 +37,8 @@ const lampGlowLight = loadDecorations(scene, THREE, {
         });
     },
     onMikuLoad: (model) => registerHobbyModel(model, "Animation"),
-    onDumbbellLoad: (model) => registerHobbyModel(model, "GYM")
+    onDumbbellLoad: (model) => registerHobbyModel(model, "GYM"),
+    onBlackHoleLoad: (model) => registerHobbyModel(model, "Space")
 });
 const clock = new THREE.Clock();
 
@@ -189,30 +190,34 @@ function createShelfPart(geometry, position) {
     shelfParts.push(part);
 }
 
+// Shifted +0.25 on z from the original -4.55/-4.7/-4.2 spots so the whole
+// shelf assembly clears the decorative wall coat instead of poking through
+// it — the brackets used to reach back to z: -4.91, past the wall's
+// interior surface at z: -4.9.
 createShelfPart(
     new THREE.BoxGeometry(4.2, 0.18, 0.55),
-    [0, 7.9, -4.55]
+    [0, 7.9, -4.30]
 );
 
 createShelfPart(
     new THREE.BoxGeometry(0.16, 0.75, 0.42),
-    [-1.45, 7.5, -4.7]
+    [-1.45, 7.5, -4.45]
 );
 
 createShelfPart(
     new THREE.BoxGeometry(0.16, 0.75, 0.42),
-    [1.45, 7.5, -4.7]
+    [1.45, 7.5, -4.45]
 );
 
 const shelfLight = new THREE.PointLight(0xffc45c, 2.5, 5, 2);
-shelfLight.position.set(0, 9.65, -4.2);
+shelfLight.position.set(0, 9.65, -3.95);
 scene.add(shelfLight);
 
 const shelfCeilingBulb = new THREE.Mesh(
     new THREE.SphereGeometry(0.09, 12, 8),
     new THREE.MeshBasicMaterial({ color: 0xffd27a })
 );
-shelfCeilingBulb.position.set(0, 9.82, -4.2);
+shelfCeilingBulb.position.set(0, 9.82, -3.95);
 scene.add(shelfCeilingBulb);
 
 const windowMaterial = new THREE.MeshStandardMaterial({
@@ -647,6 +652,12 @@ let shelfFocused = false;
 let curtainsOpen = false;
 let printerFocused = false;
 
+// Nothing in the scene should be clickable or hoverable until the Enter
+// button has been pressed once — see checkCVHover, checkHobbyHover and the
+// window "click" listener below, which all bail out early while this is
+// false.
+let introDismissed = false;
+
 const cvIdlePosition = new THREE.Vector3(-2.2, 2.735, 0.9);
 const cvHoverPosition = new THREE.Vector3(-1.0, 3.2, 1.8);
 const cvFocusPosition = new THREE.Vector3(0.15, 3.2, 2.8);
@@ -721,6 +732,11 @@ function updateCVState() {
 
 function checkCVHover() {
 
+    if (!introDismissed) {
+        document.body.style.cursor = "default";
+        return;
+    }
+
     raycaster.setFromCamera(
         mouse,
         camera
@@ -748,7 +764,7 @@ function checkHobbyHover() {
 
     // Only show hobby tags once the camera has actually zoomed in on the
     // shelf — hovering the models from the default wide view stays quiet.
-    if (!shelfFocused) {
+    if (!introDismissed || !shelfFocused) {
         hobbyLabel.classList.remove("visible");
         return;
     }
@@ -770,6 +786,10 @@ function checkHobbyHover() {
 }
 
 window.addEventListener("click", () => {
+
+    if (!introDismissed) {
+        return;
+    }
 
     raycaster.setFromCamera(
         mouse,
@@ -881,11 +901,18 @@ const hobbyLabelText = document.getElementById("hobby-label-text");
 const intro = document.getElementById("intro");
 const enterButton = document.getElementById("enter-button");
 
-const hideIntro = () => {
+const hideIntro = (event) => {
+    // Stops this same click from also reaching the scene's window-level
+    // click listener — otherwise, since introDismissed flips to true a few
+    // lines below, this one click could immediately register as a second
+    // click on whatever happens to sit behind the Enter button.
+    event?.stopPropagation();
+
     if (intro) {
         intro.classList.add("hidden");
     }
 
+    introDismissed = true;
     screenFocused = false;
     shelfFocused = false;
     curtainsOpen = false;
@@ -1429,7 +1456,7 @@ function animate() {
     camera.position.lerp(desiredCameraPosition, 0.04);
 
    const desiredLookAt = shelfFocused
-    ? new THREE.Vector3(0, 7.65, -4.2)
+    ? new THREE.Vector3(0, 7.65, -3.95)
     : screenFocused
         ? new THREE.Vector3(0, 3.95, 0.05)
         : cvFocused

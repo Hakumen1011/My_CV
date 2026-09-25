@@ -56,8 +56,12 @@ body {
 
     z-index: 10;
 
+    /* Quite dark at the start — dimming the scene behind it — then fades
+       away to reveal the normally-lit room once .hidden is added below. */
+    background: rgba(2, 2, 3, 0.88);
+
     pointer-events: auto;
-    transition: opacity 0.8s ease, visibility 0.8s ease;
+    transition: opacity 0.8s ease, visibility 0.8s ease, background 0.8s ease;
 }
 
 #intro.hidden {

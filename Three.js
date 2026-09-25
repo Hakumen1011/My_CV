@@ -2,8 +2,48 @@ import { GLTFLoader } from "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/
 
 const gltfLoader = new GLTFLoader();
 
-export function loadDecorations(scene, THREE, { onPrinterLoad, onMikuLoad, onDumbbellLoad } = {}) {
+export function loadDecorations(scene, THREE, { onPrinterLoad, onMikuLoad, onDumbbellLoad, onBlackHoleLoad } = {}) {
     const alignmentBox = new THREE.Box3();
+
+    // Like loadDecor below, but for flat wall-panel models: scales the
+    // panel's width/height non-uniformly to stretch it across a wall, then
+    // measures its actual bounding box (after that scale + rotation) and
+    // shifts it so one edge sits on the floor, the panel spans the given
+    // range along `spanAxis`, and it sits flush against the wall along
+    // `flushAxis`. Doing it by measurement (like the restingY trick above)
+    // means we don't have to hand-calculate how rotation changes which
+    // local axis maps to which world axis.
+    function loadWallCoat({ url, rotation = [0, 0, 0], scale, spanAxis, spanMin, flushAxis, flushValue, onLoad }) {
+        gltfLoader.load(
+            url,
+            (gltf) => {
+                const model = gltf.scene;
+
+                model.position.set(0, 0, 0);
+                model.rotation.set(...rotation);
+                model.scale.set(scale.x, scale.y, scale.z);
+
+                model.updateMatrixWorld(true);
+                alignmentBox.setFromObject(model);
+
+                model.position.y += 0 - alignmentBox.min.y;
+                model.position[spanAxis] += spanMin - alignmentBox.min[spanAxis];
+                model.position[flushAxis] += flushValue - alignmentBox.min[flushAxis];
+
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+
+                scene.add(model);
+                onLoad?.(model);
+            },
+            undefined,
+            () => console.warn(`Optional decoration not found: ${url}`)
+        );
+    }
 
     function loadDecor({ url, position, rotation = [0, 0, 0], scale = 1, restingY, onLoad }) {
         gltfLoader.load(
@@ -76,7 +116,7 @@ export function loadDecorations(scene, THREE, { onPrinterLoad, onMikuLoad, onDum
 
     loadDecor({
         url: "assets/models/hatsune_miku_figure.glb",
-        position: [-1.65, 0, -4.50],
+        position: [-1.65, 0, -4.25],
         rotation: [0, 0.25, 0],
         scale: 0.19,
         restingY: shelfTopY,
@@ -88,13 +128,51 @@ export function loadDecorations(scene, THREE, { onPrinterLoad, onMikuLoad, onDum
 
     loadDecor({
     url: "assets/models/dumbbell.glb",
-    position: [-0.8, 0, -4.50],
+    position: [-0.8, 0, -4.25],
     rotation: [0, 0.6, 0],
     scale: 1.8,
     restingY: shelfTopY,
     onLoad: (model) => {
         onDumbbellLoad?.(model);
     }
+    });
+
+    // WALL COAT — the back wall is a BoxGeometry(20, 10, 0.2) at [0, 5, -5],
+    // so its interior (room-facing) surface is at z = -4.9, spanning
+    // x: -10..10 and y: 0 (floor) to 10 (ceiling). The panel model itself
+    // measures ~4 x 4 units, so it's scaled non-uniformly (x5 wide, x~2.49
+    // tall) to stretch across the whole wall as a single decorative "skin"
+    // rather than tiling several copies.
+    loadWallCoat({
+        url: "assets/models/wall_interior_2_pack.glb",
+        rotation: [0, 0, 0],     // if it renders invisible/backwards, try rotation: [0, Math.PI, 0]
+        scale: { x: 5, y: 2.49, z: 1 },
+        spanAxis: "x",
+        spanMin: -10,
+        flushAxis: "z",
+        flushValue: -4.89
+    });
+
+    // BLACK HOLE — a hobby decoration on the shelf, right of the figure
+    // and dumbbell, sized down from its native ~6.3-unit scene extents to
+    // a tabletop-ornament size (~1 unit across).
+    const blackHoleLight = new THREE.PointLight(0xfff0c2, 1.6, 3.5, 2);
+    scene.add(blackHoleLight);
+
+    loadDecor({
+        url: "assets/models/gargantua_the_black_hole.glb",
+        position: [1.0, 0, -4.25],
+        rotation: [0, 0.3, 0],
+        scale: 0.16,
+        restingY: shelfTopY,
+        onLoad: (model) => {
+            blackHoleLight.position.set(
+                model.position.x,
+                model.position.y + 0.35,
+                model.position.z
+            );
+            onBlackHoleLoad?.(model);
+        }
     });
 
     const lampGlowLight = new THREE.PointLight(0xffa45f, 3.6, 12);
